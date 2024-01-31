@@ -6,6 +6,7 @@ Hugo Storm Feb 2024
 """
 
 import os
+import time
 os.environ["CUDA_VISIBLE_DEVICES"]="1,2"
 
 import arviz as az
@@ -46,11 +47,12 @@ def modelPotOutcome(X, T=None, Y=None):
         Y (np array, optional): Observed outcome. Defaults to None.
     """
     alpha_out = numpyro.sample("alpha_out", dist.Normal(0.,1).expand([X.shape[1]]))
+    const_treat = numpyro.sample("const_treat", dist.Normal(0.,1))
     beta_treat = numpyro.sample("beta_treat", dist.Normal(0.,1).expand([X.shape[1]]))
     sigma_Y = numpyro.sample("sigma_Y", dist.Exponential(1))
 
     Y0 = X @ alpha_out 
-    tau = X @ beta_treat 
+    tau = const_treat + X @ beta_treat 
     Y1 = Y0 + tau 
     T = numpyro.sample("T", dist.Bernoulli(logits=Y1 - Y0), obs=T)
     numpyro.sample("Y", dist.Normal(Y1*T + Y0*(1-T), sigma_Y), obs=Y)
@@ -74,8 +76,9 @@ def modelPotOutcome_poly(X, polyDegree=1, stepFunction=False, T=None, Y=None):
     alpha_out = numpyro.sample("alpha_out", dist.Normal(0.,1).expand([X.shape[1]]))
     sigma_Y = numpyro.sample("sigma_Y", dist.Exponential(1))
     
+    const_treat = numpyro.sample("const_treat", dist.Normal(0.,1))
     beta_treat = numpyro.sample("beta_treat", dist.Normal(0.,1).expand([X.shape[1]]))
-    tau = X @ beta_treat 
+    tau = const_treat + X @ beta_treat 
     if polyDegree>1:
         betaSq_treat = numpyro.sample("betaSq_treat", dist.Normal(0.,1).expand([X.shape[1]]))
         tau = tau + X**2 @ betaSq_treat 
@@ -276,9 +279,13 @@ def data_generating(rng_key=rng_key,
     lat_samples['Y0'].shape
 
     coefTrue = {s:lat_samples[s][0] for s in 
-                lat_samples.keys() if s not in ['Y','T','Y0', 'Y1','b_treat']}
+                lat_samples.keys() if s not in ['Y','T','Y0', 'Y1']}
     coefTrue.keys()
     # %
+    if modelTypeDataGen == 'poly3':
+        coefTrue['beta_treat'] = jnp.array([0.5],dtype='float32')
+        coefTrue['betaSq_treat'] = jnp.array([-0.1],dtype='float32')
+        coefTrue['betaCub_treat'] = jnp.array([0.5],dtype='float32')
     if modelTypeDataGen == 'poly3_step':
         coefTrue['beta_treat'] = jnp.array([0.5],dtype='float32')
         coefTrue['betaSq_treat'] = jnp.array([-0.1],dtype='float32')
@@ -365,151 +372,152 @@ if __name__ == '__main__':
     # =====================================================
     # Generate the data, set modelType to desired name
     # =====================================================
-    N = 200000
-    K = 1
-    # modelTypeDataGen = 'linear'
-    # modelTypeDataGen = 'poly2'
-    # modelTypeDataGen = 'poly3'
-    modelTypeDataGen = 'poly3_step'
-    # modelTypeDataGen = 'NN'
-    # use a see that happen to produce a good split between treated and untreated for the NN
-    # rng_key = jnp.array([3599756002, 4216389472], dtype='uint32') 
-    rng_key = jnp.array([0, 1], dtype='uint32') 
-    # print(rng_key)
-    # [2441914641 1384938218]
-    rng_key, rng_key_ = random.split(rng_key)
-    (Y, Y_unscaled, Y_mean, Y_std, T, X, Y0_true, 
-     Y1_true, beta_true, alpha_true, 
-     conditioned_predictive, datX_conditioned) = data_generating(
-        rng_key=rng_key,
-        modelTypeDataGen = modelTypeDataGen,
-        N = N,
-        K = K) 
-    
-    # %%
-    fig, ax = plt.subplots(1, 1, figsize=(8, 4))
-    ax.hist(X[T==0,0],bins=100, label='T=0', color='black');
-    ax.hist(X[T==1,0],bins=100, label='T=1', color='darkgrey');
-    ax.set_xlabel(f'X[0]', fontsize=20)
-    ax.legend()
-
-    # %%
-    # =====================================================
-    # Estimate model, set inference model to desired model
-    # =====================================================
-    rng_key, rng_key_ = random.split(rng_key)
-    # modelTypeInference = 'linear'
-    # modelTypeInference = 'poly2'
-    # modelTypeInference = 'poly3'
-    modelTypeInference = 'NN'
-    if modelTypeInference == 'linear':
-        model = modelPotOutcome
-        datXY = {'X':X, 'Y':Y_unscaled, 'T':T}
-        datX = {'X':X, 'T':T}
-    elif modelTypeInference == 'poly2':
-        model = modelPotOutcome_poly
-        datXY = {'X':X, 'Y':Y_unscaled, 'T':T, 'polyDegree':2}
-        datX = {'X':X, 'T':T, 'polyDegree':2}
-    elif modelTypeInference == 'poly3':
-        model = modelPotOutcome_poly
-        datXY = {'X':X, 'Y':Y_unscaled, 'T':T, 'polyDegree':3}
-        datX = {'X':X, 'T':T, 'polyDegree':3}
-    elif modelTypeInference == 'NN':
-        model = modelPP_NN_treament
+    for modelTypeDataGen in ['poly3','poly3_step']:
+        # %%
+        # modelTypeDataGen = 'linear'
+        # modelTypeDataGen = 'poly2'
+        # modelTypeDataGen = 'poly3'
+        # modelTypeDataGen = 'poly3_step'
+        # modelTypeDataGen = 'NN'
+        N = 200000
+        K = 1
+        # Set a seed for reproducibility
+        rng_key = jnp.array([0, 1], dtype='uint32')
+         
+        rng_key, rng_key_ = random.split(rng_key)
+        (Y, Y_unscaled, Y_mean, Y_std, T, X, Y0_true, 
+        Y1_true, beta_true, alpha_true, 
+        conditioned_predictive, datX_conditioned) = data_generating(
+            rng_key=rng_key,
+            modelTypeDataGen = modelTypeDataGen,
+            N = N,
+            K = K) 
         
-        hyperparams = {}
-        hyperparams['N'] = N
-        hyperparams['K'] = K
-        hyperparams['rng_key'] = rng_key
-        hyperparams['batch_size'] = 512
-        hyperparams['lst_lay_Y0'] = [512,64,1]
-        hyperparams['lst_drop_Y0'] = [0.2,0.2]
-        hyperparams['lst_bias_Y0'] = [True,True]
-        # hyperparams['lst_lay_tau'] = [512,64,32,1]
-        hyperparams['lst_lay_tau'] = [1028,512,64,1]
-        hyperparams['lst_drop_tau'] = [0.2,0.2,0.2]
-        hyperparams['lst_bias_tau'] = [True,True,True]
-        
-        datXY = {'X':X, 'Y':Y_unscaled, 'T':T, 'hyperparams':hyperparams,'is_training':True}
-        datX = {'X':X, 'T':T,  'hyperparams':hyperparams, 'is_training':False}
-    else:
-        raise ValueError('modelTypeInference not recognized')
-    
-    
-    # Estimate with SVI
-    rng_key, rng_key_ = random.split(rng_key)
-    guide = autoguide.AutoNormal(model, 
-                        init_loc_fn=init_to_feasible)
+        # %%
+        fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+        ax.hist(X[T==0,0],bins=100, label='T=0', color='black');
+        ax.hist(X[T==1,0],bins=100, label='T=1', color='darkgrey');
+        ax.set_xlabel(f'X[0]', fontsize=20)
+        ax.legend()
 
-    svi = SVI(model,guide,optim.Adam(0.005),Trace_ELBO())
-    svi_result = svi.run(rng_key_, 15000,**datXY)
-    plt.plot(svi_result.losses)
-    svi_params = svi_result.params
-    
-    # %%
-    # Get samples from the posterior
-    predictive = Predictive(guide, params=svi_params, num_samples=500)
-    samples_svi = predictive(random.PRNGKey(1), **datX)
-    samples_svi.keys()
-    # %%
-    # Get posterior predictions using samples from the posterior
-    predictivePosterior = Predictive(model, posterior_samples=samples_svi)
-    post_predict = predictivePosterior(random.PRNGKey(1), **datX)
-    post_predict.keys()
-    
-    tau_mean_true = np.mean(Y1_true-Y0_true)
-    print('True: avg treatment effect',tau_mean_true)
-    tau_mean_hat_scaled = np.mean(post_predict['Y1']-post_predict['Y0'])
-    tau_mean_hat = np.mean((post_predict['Y1']*Y_std+Y_mean)-(post_predict['Y0']*Y_std+Y_mean))
-    # tau_mean_hat = tau_mean_hat_scaled*Y_std+Y_mean
-    print('Estimated (scaled): avg treatment effect',tau_mean_hat_scaled)
-    print('Estimated: avg treatment effect',tau_mean_hat)
-    
-    if modelTypeInference != 'NN':    
-        print('alpha_true',alpha_true)
-        print('alpha_hat',np.mean(samples_svi['alpha_out'],axis=0))
+        # %%
+        # =====================================================
+        # Estimate model, set inference model to desired model
+        # =====================================================
+        rng_key, rng_key_ = random.split(rng_key)
         
-        print('beta_true',beta_true)
-        print('beta_hat',np.mean(samples_svi['beta_treat'],axis=0))
+        for modelTypeInference in ['linear','poly2','poly3','NN']:
+            # %%
+            # modelTypeInference = 'linear'
+            # modelTypeInference = 'poly2'
+            # modelTypeInference = 'poly3'
+            # modelTypeInference = 'NN'
+            if modelTypeInference == 'linear':
+                model = modelPotOutcome
+                datXY = {'X':X, 'Y':Y_unscaled, 'T':T}
+                datX = {'X':X, 'T':T}
+            elif modelTypeInference == 'poly2':
+                model = modelPotOutcome_poly
+                datXY = {'X':X, 'Y':Y_unscaled, 'T':T, 'polyDegree':2}
+                datX = {'X':X, 'T':T, 'polyDegree':2}
+            elif modelTypeInference == 'poly3':
+                model = modelPotOutcome_poly
+                datXY = {'X':X, 'Y':Y_unscaled, 'T':T, 'polyDegree':3}
+                datX = {'X':X, 'T':T, 'polyDegree':3}
+            elif modelTypeInference == 'NN':
+                model = modelPP_NN_treament
+                
+                hyperparams = {}
+                hyperparams['N'] = N
+                hyperparams['K'] = K
+                hyperparams['rng_key'] = rng_key
+                hyperparams['batch_size'] = 512
+                hyperparams['lst_lay_Y0'] = [512,64,1]
+                hyperparams['lst_drop_Y0'] = [0.2,0.2]
+                hyperparams['lst_bias_Y0'] = [True,True]
+                hyperparams['lst_lay_tau'] = [1028,512,64,1]
+                hyperparams['lst_drop_tau'] = [0.2,0.2,0.2]
+                hyperparams['lst_bias_tau'] = [True,True,True]
+                
+                datXY = {'X':X, 'Y':Y_unscaled, 'T':T, 'hyperparams':hyperparams,'is_training':True}
+                datX = {'X':X, 'T':T,  'hyperparams':hyperparams, 'is_training':False}
+            else:
+                raise ValueError('modelTypeInference not recognized')
+            
+            # %%
+            # Estimate with SVI
+            start = time.time()
+            rng_key, rng_key_ = random.split(rng_key)
+            guide = autoguide.AutoNormal(model, 
+                                init_loc_fn=init_to_feasible)
 
-    # %%
-    k = 0
-    x_percentile = np.percentile(X[:,k],q=[0.5,95])
-    x_range = np.linspace(x_percentile[0],x_percentile[1],100)
-    x_mean = X.mean(axis=0)
-    x_plot = np.repeat(x_mean.reshape(1,-1),100,axis=0)
-    x_plot[:,k] = x_range
-    
-    datX_plot = datX.copy()
-    datX_plot['X'] = x_plot
-    datX_plot['T'] = jnp.zeros(100)
-    if modelTypeInference == 'NN':
-        datX_plot['hyperparams']['batch_size'] = 100
-    
-    datX_plot_conditioned = datX_conditioned.copy()
-    datX_plot_conditioned['X'] = x_plot
-    datX_plot_conditioned['T'] = jnp.zeros(100)
-    # Get posterior predictions
-    post_predict = predictivePosterior(random.PRNGKey(1), **datX_plot)
-    # Get prediction from the "true" conditioned model
-    true_predict = conditioned_predictive(rng_key_,**datX_plot_conditioned)
-    
-    fig, ax = plt.subplots(1, 1, figsize=(8, 4))
-    for i in range(1,300):
-        # tau_i = ((post_predict['Y1']*Y_std+Y_mean)-(post_predict['Y0']*Y_std+Y_mean))[i,:]
-        tau_i = ((post_predict['Y1'])-(post_predict['Y0']))[i,:]
-        # tau_i = tau_i_scaled*Y_std+Y_mean
-        ax.plot(x_plot[:,k],tau_i,color='k',alpha=0.2);
-    # Add "true" effect in red    
-    ax.plot(x_plot[:,k],(true_predict['Y1']-true_predict['Y0'])[0,:],color='r',alpha=1);
+            svi = SVI(model,guide,optim.Adam(0.005),Trace_ELBO())
+            svi_result = svi.run(rng_key_, 15000,**datXY)
+            print("\nInference elapsed time:", time.time() - start)
+            plt.plot(svi_result.losses)
+            svi_params = svi_result.params
+            
+            # %%
+            # Get samples from the posterior
+            predictive = Predictive(guide, params=svi_params, num_samples=500)
+            samples_svi = predictive(random.PRNGKey(1), **datX)
+            samples_svi.keys()
+            # %%
+            # Get posterior predictions using samples from the posterior
+            predictivePosterior = Predictive(model, posterior_samples=samples_svi)
+            post_predict = predictivePosterior(random.PRNGKey(1), **datX)
+            post_predict.keys()
+            
+            tau_mean_true = np.mean(Y1_true-Y0_true)
+            print('True: avg treatment effect',tau_mean_true)
+            tau_mean_hat_scaled = np.mean(post_predict['Y1']-post_predict['Y0'])
+            tau_mean_hat = np.mean((post_predict['Y1']*Y_std+Y_mean)-(post_predict['Y0']*Y_std+Y_mean))
+            print('Estimated (scaled): avg treatment effect',tau_mean_hat_scaled)
+            print('Estimated: avg treatment effect',tau_mean_hat)
+            
+            if modelTypeInference != 'NN':    
+                print('alpha_true',alpha_true)
+                print('alpha_hat',np.mean(samples_svi['alpha_out'],axis=0))
+                
+                print('beta_true',beta_true)
+                print('beta_hat',np.mean(samples_svi['beta_treat'],axis=0))
 
-    ax.set_xlabel(f'X[{k}]', fontsize=20)
-    ax.set_ylabel('tau', fontsize=20)
-    # Set tick font size
-    for label in (ax.get_xticklabels() + ax.get_yticklabels()):
-        label.set_fontsize(20)
-        
-    
+            # %%
+            k = 0
+            x_percentile = np.percentile(X[:,k],q=[0.5,95])
+            x_range = np.linspace(x_percentile[0],x_percentile[1],100)
+            x_mean = X.mean(axis=0)
+            x_plot = np.repeat(x_mean.reshape(1,-1),100,axis=0)
+            x_plot[:,k] = x_range
+            
+            datX_plot = datX.copy()
+            datX_plot['X'] = x_plot
+            datX_plot['T'] = jnp.zeros(100)
+            if modelTypeInference == 'NN':
+                datX_plot['hyperparams']['batch_size'] = 100
+            
+            datX_plot_conditioned = datX_conditioned.copy()
+            datX_plot_conditioned['X'] = x_plot
+            datX_plot_conditioned['T'] = jnp.zeros(100)
+            # Get posterior predictions
+            post_predict = predictivePosterior(random.PRNGKey(1), **datX_plot)
+            # Get prediction from the "true" conditioned model
+            true_predict = conditioned_predictive(rng_key_,**datX_plot_conditioned)
+            
+            fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+            for i in range(1,300):
+                tau_i = ((post_predict['Y1'])-(post_predict['Y0']))[i,:]
+                ax.plot(x_plot[:,k],tau_i,color='k',alpha=0.2);
+            # Add "true" effect in red    
+            ax.plot(x_plot[:,k],(true_predict['Y1']-true_predict['Y0'])[0,:],color='r',alpha=1);
+
+            ax.set_xlabel(f'X[{k}]', fontsize=20)
+            ax.set_ylabel('tau', fontsize=20)
+            # Set tick font size
+            for label in (ax.get_xticklabels() + ax.get_yticklabels()):
+                label.set_fontsize(20)
+            
+            fig.savefig(f'../figures/POF_{modelTypeDataGen}_{modelTypeInference}.png',dpi=300)    
     # %%
     
         
