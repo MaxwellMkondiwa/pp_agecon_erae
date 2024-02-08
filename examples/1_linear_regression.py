@@ -73,6 +73,14 @@ def model_sigma_b(Soil, sigma_b, Yield=None):
     beta = numpyro.sample('beta', dist.Normal(0,sigma_b))
     sigma = numpyro.sample('sigma', dist.Exponential(1))
     numpyro.sample('Yield',dist.Normal(Soil*beta,sigma), obs=Yield)
+    
+# Same model as above, but with yield as a student-t distribution
+def model_sigma_b(Soil, sigma_b, Yield=None):
+# def model_sigma_b_student(Soil, sigma_b, Yield=None):
+    beta = numpyro.sample('beta', dist.Normal(0,sigma_b))
+    sigma = numpyro.sample('sigma', dist.Exponential(1))
+    df = 5 # degrees of freedom for student-t distribution
+    numpyro.sample('Yield',dist.StudentT(df,Soil*beta,sigma), obs=Yield)
 
 # %%
 # =============================================================================
@@ -81,11 +89,11 @@ def model_sigma_b(Soil, sigma_b, Yield=None):
 nPriorSamples = 1000 # Number of prior samples
 # Perform prior sampling for different values of sigma_b
 for sigma_b in [1,5]:
-    
+    # %
     rng_key, rng_key_ = random.split(rng_key)
     prior_predictive = Predictive(model_sigma_b, num_samples=nPriorSamples)
     prior_samples = prior_predictive(rng_key_,Soil=Soil, sigma_b=sigma_b)
-
+    # %
     # Plot prior samples
     fig, ax = plt.subplots(1, 1, figsize=(6, 4))
     ax.hist((prior_samples['Yield'][:,:].flatten()*scale_train['Winterweizen_yield_std']+scale_train['Winterweizen_yield_mean'])/10,
@@ -137,12 +145,12 @@ for sigma_b in [1,5]:
     mcmc = MCMC(kernel, num_samples=800, num_warmup=1000, num_chains=2)
     mcmc.run(rng_key_, Soil=Soil, sigma_b=sigma_b, Yield=Yield)
     mcmc.print_summary()
-    # # %
-    # azMCMC = az.from_numpyro(mcmc)
-    # azMCMC= azMCMC.assign_coords({
-    #                 'b_dim_0':lstColX,
-    #                     })
+
+    # Inspect MCMC sampling using arviz    
+    azMCMC = az.from_numpyro(mcmc)
+    azMCMC= azMCMC.assign_coords({'b_dim_0':lstColX})
     # az.summary(azMCMC)
+    az.plot_trace(azMCMC);
 
     # Get posterior samples
     post_samples = mcmc.get_samples()
@@ -181,7 +189,5 @@ for sigma_b in [1,5]:
         
     sns.rugplot(data=Soil*scale_train['bodenzahl_std']+scale_train['bodenzahl_mean'], 
                 ax=ax, color='grey')    
-
-
 
     # %%
