@@ -74,29 +74,40 @@ def model_sigma_b(Soil, sigma_b, Yield=None):
     sigma = numpyro.sample('sigma', dist.Exponential(1))
     numpyro.sample('Yield',dist.Normal(Soil*beta,sigma), obs=Yield)
     
-# Same model as above, but with yield as a student-t distribution
-def model_sigma_b(Soil, sigma_b, Yield=None):
-# def model_sigma_b_student(Soil, sigma_b, Yield=None):
+# Same model as above, but with yield as a student-t distribution and truncated at zero
+lowtrunc_scale = (0-scale_train['Winterweizen_yield_mean'])/scale_train['Winterweizen_yield_std']
+def model_trunc(Soil, sigma_b, Yield=None):
     beta = numpyro.sample('beta', dist.Normal(0,sigma_b))
     sigma = numpyro.sample('sigma', dist.Exponential(1))
     df = 5 # degrees of freedom for student-t distribution
-    numpyro.sample('Yield',dist.StudentT(df,Soil*beta,sigma), obs=Yield)
+    # Truncate studentT distribution
+    numpyro.sample('Yield',dist.LeftTruncatedDistribution(
+        dist.StudentT(df,Soil*beta,sigma),low=lowtrunc_scale), obs=Yield)
+    # Alternative use a truncated normal instead
+    # numpyro.sample('Yield',dist.TruncatedNormal(Soil*beta,sigma,low=lowtrunc_scale), obs=Yield)
+
 
 # %%
 # =============================================================================
 # Prior sampling
 # =============================================================================
+model = model_sigma_b
+# model = model_trunc # Change here to use the truncated model
+
 nPriorSamples = 1000 # Number of prior samples
 # Perform prior sampling for different values of sigma_b
 for sigma_b in [1,5]:
     # %
     rng_key, rng_key_ = random.split(rng_key)
-    prior_predictive = Predictive(model_sigma_b, num_samples=nPriorSamples)
+    prior_predictive = Predictive(model, num_samples=nPriorSamples)
     prior_samples = prior_predictive(rng_key_,Soil=Soil, sigma_b=sigma_b)
+
     # %
     # Plot prior samples
     fig, ax = plt.subplots(1, 1, figsize=(6, 4))
-    ax.hist((prior_samples['Yield'][:,:].flatten()*scale_train['Winterweizen_yield_std']+scale_train['Winterweizen_yield_mean'])/10,
+    ax.hist((prior_samples['Yield'].flatten()[~np.isinf(prior_samples['Yield'].flatten())]
+                *scale_train['Winterweizen_yield_std']
+                +scale_train['Winterweizen_yield_mean'])/10,
             bins=100, density=True, color='grey');
     ax.set_title(fr'$\beta$~Normal(0,{sigma_b})', fontsize=20)
     ax.set_xlabel('Yield [t/ha]', fontsize=20)
@@ -135,13 +146,13 @@ for sigma_b in [1,5]:
     # Set tick font size
     for label in (ax.get_xticklabels() + ax.get_yticklabels()):
         label.set_fontsize(20)
-
+    # %
     # =============================================================================
     # Estimate model using numpyro MCMC
     # =============================================================================
     print(f"Estimate model with sigma_b={sigma_b}")
     rng_key, rng_key_ = random.split(rng_key)
-    kernel = NUTS(model_sigma_b)
+    kernel = NUTS(model)
     mcmc = MCMC(kernel, num_samples=800, num_warmup=1000, num_chains=2)
     mcmc.run(rng_key_, Soil=Soil, sigma_b=sigma_b, Yield=Yield)
     mcmc.print_summary()

@@ -1,41 +1,9 @@
 
 
-## Code EAAE 2023 Keynote **Thomas Heckelei** [Program Link](https://eaae2023.colloque.inrae.fr/keynote-speakers/thomas-heckelei)
-
-![alt text](title.png "Title")
-
-**Thomas Heckelei**, Hugo Storm, Kathy Baylis
-
-Questions: *thomas.heckelei@ilr.uni-bonn.de*, *hugo.storm@ilr.uni-bonn.de*, *baylis@ucsb.edu*
-
-## Keynote Slides
-[Keynote slides pptx](https://github.com/hstorm/pp_eaae_rennes/blob/master/Slides_PP_Talk_EAAE_Rennes_final.pptx) (ppt Version with plot animation) 
-[Keynote slides pdf](https://github.com/hstorm/pp_eaae_rennes/blob/master/Slides_PP_Talk_EAAE_Rennes_final.pdf) (pdf Version) 
+## Code PP in AgEcon
 
 
-## Example code
 
-*To run the examples, check the notes below on how to setup a python environment.*
-
-All examples are implemented in [numpyro](https://num.pyro.ai/en/stable/)
-
-1. Common econometrics model implemented in numpyro [econometrics_in_pp.py](https://github.com/hstorm/pp_eaae_rennes/blob/master/examples/econometrics_in_pp.py)
-
-2. Cumulative prospect theory model implemented in numpyro [cumulative_prospect_theory.py](https://github.com/hstorm/pp_eaae_rennes/blob/master/examples/cumulative_prospect_theory.py)
-
-3. Prior sampling in numpyro  using regional yield  data [prior_sampling.py](https://github.com/hstorm/pp_eaae_rennes/blob/master/examples/prior_sampling.py)
-
-4. Potential outcome framework on numypro, including a verison using a  flexible dense neural network [neuralnet_treatment.py](https://github.com/hstorm/pp_eaae_rennes/blob/master/examples/neuralnet_treatment.py)
-
-[Other examples, not considered in keynote talk]
-
-5. Logit model implemented with numpyro neural network tools [logit_as_neuralnet.py](https://github.com/hstorm/pp_eaae_rennes/blob/master/examples/logit_as_neuralnet.py)
-
-6. Market model (example incomplete!) [market_model.py](https://github.com/hstorm/pp_eaae_rennes/blob/master/examples/market_model.py)
-
-## EAAE Poster: Probabilistic Programming policy application 
-
-Kuhn, K., Pahmeyer, C., **Storm, H.** (2023) *Using Probabilistic Programming to Asses Policy Induced Adaptation of Crop Choices: A Case Study of the German Implementation of the EU Nitrates Directive*, Poster presented at EAAE congress 2023, Rennes, France. [Link Poster](https://github.com/hstorm/pp_eaae_rennes/blob/master/RedAreaPoster.pdf)
 
 ## Notes to setup environment using pipenv or vscode devcontainer
 
@@ -47,9 +15,13 @@ Kuhn, K., Pahmeyer, C., **Storm, H.** (2023) *Using Probabilistic Programming to
     pipenv shell
 
     pip install numpyro[cuda] -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+
     ```
+    Optionally install tensorflow-proability (this is only required for the truncated distributions in
+    example 1) 
+    ```pip install --upgrade tensorflow-probability```
     
-    Optionally install flax manually:
+    Optionally install flax manually (required for the potential outcome example):
     ```pip install flax```
 
 [Alternativly use VS Code devcontainer](https://code.visualstudio.com/docs/remote/containers): using provided docker file and devcontainer.json (jax and flax need to be manually installed in container as with pipenv)
