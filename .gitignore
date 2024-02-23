@@ -1,7 +1,7 @@
 # Project specific 
 /environment.yml
 .vscode
-
+*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
