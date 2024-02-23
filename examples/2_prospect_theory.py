@@ -66,13 +66,13 @@ def pyro_inference(rng_key,model, num_samples=200, num_warmup=1000,
     return mcmc, samples
 
 # %%
-def plot_utility(lam, rho, ax=None, addTitle=True):
+def plot_utility(lam, rho, ax=None, addTitle=True, color='blue'):
     x_range = jnp.linspace(-10,10,20)
     util = utility(x_range,  lam=lam, rho=rho)
 
     if ax is None:
         f, ax = plt.subplots(figsize=(6, 6))
-    ax.plot(x_range,util, color='blue',linewidth=0.5);
+    ax.plot(x_range,util, color=color,linewidth=0.5);
     ax.plot([-12, 12], [-12, 12], ls="--", c="lightgray");
     
     ax.set_ylabel('Utility, u(x)')
@@ -88,26 +88,24 @@ def plot_utility(lam, rho, ax=None, addTitle=True):
 def utility(x, lam, rho):
     # Note the additional jnp.where are required to make sure that there are no nans in 
     # gradient calculations, see https://github.com/tensorflow/probability/blob/main/discussion/where-nan.pdf
-    util = jnp.where(x > 0, 
+    return jnp.where(x > 0, 
                      jnp.where(x>0,x,0)**rho, 
                      -lam * (-jnp.where(x>0,0,x))**rho)
-    return util
 # %%
 # define a model for prospect theory in numpyro
-def model_PT(gain, loss, cert, took_gamble=None):
+def model_PT(gain, loss, certain, took_gamble=None):
     # Define priors
     lam = numpyro.sample('lam', dist.TruncatedNormal(loc=2, scale=1.0,low=1., high=4.))
     # rho = numpyro.sample('rho', dist.TruncatedNormal(loc=1, scale=1.0,low=0.5, high=1.5))
     rho = numpyro.sample('rho', dist.TruncatedNormal(loc=1, scale=1.0,low=0.5, high=1.))
-    mu = numpyro.sample('mu', dist.Uniform(0.5, 1.5))
     
     # Calculate utility of gamble and certain option
-    util_reject =  utility(cert, lam, rho)
+    util_reject =  utility(certain, lam, rho)
     util_accept = 0.5 * utility(gain, lam, rho) + 0.5 * utility(loss, lam, rho)
     util_diff =  util_accept - util_reject
     
     # Calculate probability of accepting gamble
-    p_accept = 1/(1+jnp.exp(-mu*util_diff))
+    p_accept = 1/(1+jnp.exp(-util_diff))
     
     # Choice of took_gamble
     numpyro.sample('took_gamble', dist.BernoulliProbs(p_accept), obs=took_gamble)
@@ -125,11 +123,11 @@ if __name__ == "__main__":
     # %%
     dat_X_train = dict(gain=df['gain'].values,
                        loss=df['loss'].values,
-                       cert=df['cert'].values,
+                       certain=df['cert'].values,
                         )
     dat_XY_train = dict(gain=df['gain'].values,
                        loss=df['loss'].values,
-                       cert=df['cert'].values,
+                       certain=df['cert'].values,
                        took_gamble=df['took_gamble'].values
                         )
     # %%
@@ -146,11 +144,14 @@ if __name__ == "__main__":
     prior_sam = sample_prior(rng_key, model_PT,**dat_X_train)
 
     # %%
-    f, ax = plt.subplots(figsize=(6, 6))
+    f, ax = plt.subplots(figsize=(6, 4))
     for i in range(0,200):
-        plot_utility(lam=prior_sam['lam'][i] , rho=prior_sam['rho'][i],ax=ax, addTitle=False );
-    plt.xlim([-12, 12])
-    plt.ylim([-12, 12])
+        plot_utility(lam=prior_sam['lam'][i] , 
+                     rho=prior_sam['rho'][i],ax=ax, 
+                     addTitle=False,
+                     color='black');
+    plt.xlim([-10, 10])
+    plt.ylim([-12, 10])
     plt.show()
     # %%
     print('Shape of rho',prior_sam['rho'].shape)
@@ -166,9 +167,12 @@ if __name__ == "__main__":
     mcmc_M1, post_sam = pyro_inference(rng_key,model_PT,**dat_XY_train)
 
     # %%
-    f, ax = plt.subplots(figsize=(6, 6))
+    f, ax = plt.subplots(figsize=(6, 4))
     for i in range(0,200):
-        plot_utility(lam=post_sam['lam'][i] , rho=post_sam['rho'][i],ax=ax,addTitle=False );
+        plot_utility(lam=post_sam['lam'][i] , 
+                     rho=post_sam['rho'][i],
+                     ax=ax,addTitle=False,
+                     color='black');
     plt.xlim([-12, 12])
     plt.ylim([-12, 12])
     plt.show()
@@ -176,7 +180,11 @@ if __name__ == "__main__":
     # %%
     azMCMC = az.from_numpyro(mcmc_M1)
     # %%
-    az.plot_posterior(azMCMC);
+    az.plot_posterior(azMCMC,
+                      var_names=["rho", "lam"],
+                      textsize=20,
+                      round_to=3,
+                      figsize=(10,5));
 
     # %%
     ax = az.plot_pair(
@@ -184,13 +192,13 @@ if __name__ == "__main__":
         # centered,
         var_names=["rho", "lam"],
         kind="kde",
-        textsize=22,
+        textsize=20,
+        figsize=(5,5),
         kde_kwargs={
             "hdi_probs": [0.3, 0.6, 0.9],  # Plot 30%, 60% and 90% HDI contours
             "contourf_kwargs": {"cmap": "Blues"},
         },
     )
 
-    # ax.set_aspect("equal")
     plt.show()
 # %%
