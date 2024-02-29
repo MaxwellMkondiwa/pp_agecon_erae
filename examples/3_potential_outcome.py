@@ -31,6 +31,11 @@ else:
 
 az.style.use("arviz-darkgrid")
 
+plt.style.use('default')
+import matplotlib as mpl
+mpl.rcParams['figure.dpi'] = 300
+
+
 # Make sure that numpyro is the correct version
 assert numpyro.__version__.startswith("0.12.1")
 
@@ -350,7 +355,8 @@ def data_generating(rng_key=rng_key,
     # Set tick font size
     for label in (ax.get_xticklabels() + ax.get_yticklabels()):
         label.set_fontsize(20)
-        
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)    
     sns.rugplot(data=Z[T==1,1], 
             ax=ax, color='black',lw=1, alpha=.005)    
     ax.set_xlim([-3,3])
@@ -405,6 +411,8 @@ if __name__ == '__main__':
         ax.hist(Z[T==0,1],bins=100, label='T=0', color='black', alpha=0.5);
         ax.hist(Z[T==1,1],bins=100, label='T=1', color='darkgrey', alpha=0.5);
         ax.set_xlabel(f'Z[1]', fontsize=20)
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
         ax.legend()
 
         # %%
@@ -519,6 +527,9 @@ if __name__ == '__main__':
                 ax.plot(x_plot[:,k],tau_i,color='k',alpha=0.2);
             # Add "true" effect in red    
             ax.plot(x_plot[:,k],(true_predict['Y1']-true_predict['Y0'])[0,:],color='r',alpha=1);
+            
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
 
             ax.set_xlabel(f'Z[{k}]', fontsize=20)
             ax.set_ylabel(r'$E[\tau]$', fontsize=20)
@@ -528,6 +539,7 @@ if __name__ == '__main__':
             
             sns.rugplot(data=Z[T==1,1], ax=ax, color='black',lw=1, alpha=.005)   
             ax.set_xlim([x_percentile[0],x_percentile[1]])
+            plt.tight_layout()
             fig.savefig(f'../figures/POF_{modelTypeDataGen}_{modelTypeInference}.png',dpi=300)    
     # %%
     

@@ -31,6 +31,8 @@ os.chdir(os.path.dirname(os.getcwd()))
 # Make sure that numpyro is the correct version
 assert numpyro.__version__.startswith("0.12.1")
 
+plt.style.use('default')
+
 # %%
 # Set seed for reproducibility
 rng_key = random.PRNGKey(1)
@@ -115,6 +117,9 @@ for sigma_b in [1,5]:
     # Set tick font size
     for label in (ax.get_xticklabels() + ax.get_yticklabels()):
         label.set_fontsize(20)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+        
 
     # Plot regression lines
     x_range_scaled = np.linspace(-5,5,100)
@@ -138,11 +143,15 @@ for sigma_b in [1,5]:
         ax.set_ylim([0,15])
     else:
         ax.set_ylim([-20,40])
+        
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    
     plt.tight_layout()
     sns.rugplot(data=Soil*scale_train['bodenzahl_std']+scale_train['bodenzahl_mean'], 
             ax=ax, color='grey')    
 
-
+    # %
     # Set tick font size
     for label in (ax.get_xticklabels() + ax.get_yticklabels()):
         label.set_fontsize(20)
@@ -165,8 +174,9 @@ for sigma_b in [1,5]:
 
     # Get posterior samples
     post_samples = mcmc.get_samples()
-    
+    # %
     # Plot posterior samples
+
     fig, ax = plt.subplots(1, 1, figsize=(6, 4))
     ax.hist(prior_samples['beta'],bins=100,density=True, label='prior', color='grey');
     ax.hist(post_samples['beta'],bins=100,density=True, label='posterior', color='black');
@@ -174,10 +184,14 @@ for sigma_b in [1,5]:
     ax.set_xlabel(fr"$\beta$", fontsize=20)
     ax.set_xlim([-1,1])
     ax.set_ylabel('Density', fontsize=20)
-    ax.legend()
+    ax.legend(frameon=False, fontsize=20)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    
+    
     for label in (ax.get_xticklabels() + ax.get_yticklabels()):
         label.set_fontsize(15)
-
+    # %
     # Plot regression lines
     x_range_scaled = np.linspace(-5,5,100)
     x_mean_scaled = Soil.mean(axis=0)
@@ -197,8 +211,13 @@ for sigma_b in [1,5]:
     ax.set_xlim([30,70])
     for label in (ax.get_xticklabels() + ax.get_yticklabels()):
         label.set_fontsize(20)
-        
+    
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+
     sns.rugplot(data=Soil*scale_train['bodenzahl_std']+scale_train['bodenzahl_mean'], 
                 ax=ax, color='grey')    
 
-    # %%
+    # %
+
+# %%

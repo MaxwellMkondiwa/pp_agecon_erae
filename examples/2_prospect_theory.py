@@ -31,6 +31,11 @@ az.style.use("arviz-darkgrid")
 numpyro.set_platform("cpu")
 numpyro.set_host_device_count(4)
 
+plt.style.use('default')
+import matplotlib as mpl
+mpl.rcParams['figure.dpi'] = 300
+
+
 # %%
 def load_data():
     # import data
@@ -75,8 +80,8 @@ def plot_utility(lam, rho, ax=None, addTitle=True, color='blue'):
     ax.plot(x_range,util, color=color,linewidth=0.5);
     ax.plot([-12, 12], [-12, 12], ls="--", c="lightgray");
     
-    ax.set_ylabel('Utility, u(x)')
-    ax.set_xlabel('Payout (x)')
+    ax.set_ylabel('Utility, u(x)', fontsize=20)
+    ax.set_xlabel('Payout (x)', fontsize=20)
     if addTitle:
         ax.set_title(f'$\lambda$ = {lam:.2f}, $\\rho$ = {rho:.2f}, $\\mu$ = 1')
     if ax is None:
@@ -133,11 +138,14 @@ if __name__ == "__main__":
     # %%
     # Illustrate utility function
     fig, ax = plt.subplots(figsize=(4, 3))
-    plot_utility(2.6, .65, ax=ax)
+    # plot_utility(2.6, .65, ax=ax)
     # plot_utility(1., 0.5, ax=ax) # use prior extremes
-    # plot_utility(4, 1, ax=ax) # use prior extremes
+    plot_utility(4, 1, ax=ax) # use prior extremes
     ax.set_ylim([-10, 10])
     ax.set_xlim([-10, 10])
+    
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
     
     # %%
     # sample for prior
@@ -152,6 +160,12 @@ if __name__ == "__main__":
                      color='black');
     plt.xlim([-10, 10])
     plt.ylim([-12, 10])
+    
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    for label in (ax.get_xticklabels() + ax.get_yticklabels()):
+        label.set_fontsize(20)
+    ax.xaxis.set_major_locator(plt.MaxNLocator(6))
     plt.show()
     # %%
     print('Shape of rho',prior_sam['rho'].shape)
@@ -173,8 +187,13 @@ if __name__ == "__main__":
                      rho=post_sam['rho'][i],
                      ax=ax,addTitle=False,
                      color='black');
-    plt.xlim([-12, 12])
-    plt.ylim([-12, 12])
+    plt.xlim([-10, 10])
+    plt.ylim([-12, 10])
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    for label in (ax.get_xticklabels() + ax.get_yticklabels()):
+        label.set_fontsize(20)
+    ax.xaxis.set_major_locator(plt.MaxNLocator(6))
     plt.show()
     
     # %%
@@ -199,6 +218,7 @@ if __name__ == "__main__":
             "contourf_kwargs": {"cmap": "Blues"},
         },
     )
-
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
     plt.show()
 # %%
