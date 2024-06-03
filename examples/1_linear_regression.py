@@ -100,68 +100,15 @@ model = model_sigma_b
 
 nPriorSamples = 1000 # Number of prior samples
 # Perform prior sampling for different values of sigma_b
+lstRes = []
 for sigma_b in [1,5]:
-    # %
+    # =============================================================================
+    # Sample from prior
+    # =============================================================================
     rng_key, rng_key_ = random.split(rng_key)
     prior_predictive = Predictive(model, num_samples=nPriorSamples)
     prior_samples = prior_predictive(rng_key_,Soil=Soil, sigma_b=sigma_b)
-
-    # %
-    # Plot prior samples
-    fig, ax = plt.subplots(1, 1, figsize=(6, 4))
-    ax.hist((prior_samples['Yield'].flatten()[~np.isinf(prior_samples['Yield'].flatten())]
-                *scale_train['Winterweizen_yield_std']
-                +scale_train['Winterweizen_yield_mean'])/10,
-            bins=100, density=True, color='grey');
-    ax.set_title(fr'$\beta$~Normal(0,{sigma_b})', fontsize=20)
-    ax.set_xlabel('Yield [t/ha]', fontsize=20)
-    ax.set_ylabel('Density', fontsize=20)
-    # Set tick font size
-    for label in (ax.get_xticklabels() + ax.get_yticklabels()):
-        label.set_fontsize(20)
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
     
-    fig.savefig(f'figures/linReg_PriorhistYield_sigma{sigma_b}.png',dpi=300,
-                bbox_inches='tight')     
-
-    # Plot regression lines
-    x_range_scaled = np.linspace(-5,5,100)
-    x_mean_scaled = Soil.mean(axis=0)
-    x_plot = np.repeat(x_mean_scaled.reshape(1,-1),100,axis=0)
-    x_plot[:,0] = x_range_scaled
-    fig, ax = plt.subplots(1, 1, figsize=(6, 4))
-    x_range = x_range_scaled*scale_train['bodenzahl_std']+scale_train['bodenzahl_mean']
-    for i in range(1,300):
-        y_hat_scaled = x_plot @ prior_samples['beta'][i].reshape(-1,1) 
-        
-        y_hat = y_hat_scaled*scale_train['Winterweizen_yield_std']+scale_train['Winterweizen_yield_mean']
-
-        ax.plot(x_range,y_hat/10,color='k',alpha=0.2)
-
-    ax.set_title(fr'$\beta$~Normal(0,{sigma_b})', fontsize=20)    
-    ax.set_xlabel('Soil Rating', fontsize=20)
-    ax.set_ylabel('Yield [t/ha]', fontsize=20)
-    ax.set_xlim([30,70])
-    if sigma_b==1:
-        ax.set_ylim([0,15])
-    else:
-        ax.set_ylim([-20,40])
-        
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-    
-    plt.tight_layout()
-    sns.rugplot(data=Soil*scale_train['bodenzahl_std']+scale_train['bodenzahl_mean'], 
-            ax=ax, color='grey')    
-    # %
-    # Set tick font size
-    for label in (ax.get_xticklabels() + ax.get_yticklabels()):
-        label.set_fontsize(20)
-        
-    fig.savefig(f'figures/linReg_PriorLines_sigma{sigma_b}.png',dpi=300,
-                bbox_inches='tight')    
-    # %
     # =============================================================================
     # Estimate model using numpyro MCMC
     # =============================================================================
@@ -173,62 +120,131 @@ for sigma_b in [1,5]:
     mcmc.print_summary()
 
     # Inspect MCMC sampling using arviz    
-    azMCMC = az.from_numpyro(mcmc)
-    azMCMC= azMCMC.assign_coords({'b_dim_0':lstColX})
+    # azMCMC = az.from_numpyro(mcmc)
+    # azMCMC= azMCMC.assign_coords({'b_dim_0':lstColX})
     # az.summary(azMCMC)
-    az.plot_trace(azMCMC);
+    # az.plot_trace(azMCMC);
 
     # Get posterior samples
     post_samples = mcmc.get_samples()
-    # %
-    # Plot posterior samples
 
-    fig, ax = plt.subplots(1, 1, figsize=(6, 4))
-    ax.hist(prior_samples['beta'],bins=100,density=True, label='prior', color='grey');
-    ax.hist(post_samples['beta'],bins=100,density=True, label='posterior', color='black');
-    ax.set_title(fr'$\beta$~Normal(0,{sigma_b})', fontsize=20)
-    ax.set_xlabel(fr"$\beta$", fontsize=20)
-    ax.set_xlim([-1,1])
-    ax.set_ylabel('Density', fontsize=20)
-    ax.legend(frameon=False, fontsize=20)
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
+    # Append results to list
+    lstRes.append({
+        'post_samples':post_samples,
+        'prior_samples':prior_samples,
+        'sigma_b':sigma_b
+    })
+# %%
+# ================================
+# Plot figures 2 and 3
+# ================================
+fig2 = plt.figure(constrained_layout=True,figsize=(15, 10))
+(subfig2top, subfig2bot) = fig2.subfigures(2, 1) 
+axFig2 = np.array([subfig2top.subplots(1, 2),
+                   subfig2bot.subplots(1, 2)])
+subfig2top.suptitle('Prior samples for yields',fontsize=20,fontweight="bold")             
+subfig2bot.suptitle('Prior samples of regression lines',fontsize=20,fontweight="bold")    
+
+fig3 = plt.figure(constrained_layout=True,figsize=(15, 10))
+(subfig3top, subfig3bot) = fig3.subfigures(2, 1)
+axFig3 = np.array([subfig3top.subplots(1, 2),
+                   subfig3bot.subplots(1, 2)])
+subfig3top.suptitle('Posterior and Prior densities',fontsize=20,fontweight="bold")   
+subfig3bot.suptitle('Posterior regression lines',fontsize=20,fontweight="bold") 
+
+for icol, res in enumerate(lstRes):
+    prior_samples = res['prior_samples']
+    post_samples = res['post_samples']
+    sigma_b = res['sigma_b']
     
+    # Plot prior samples
+    axFig2[0,icol].hist((prior_samples['Yield'].flatten()[~np.isinf(prior_samples['Yield'].flatten())]
+                *scale_train['Winterweizen_yield_std']
+                +scale_train['Winterweizen_yield_mean'])/10,
+            bins=100, density=True, color='grey');
+    axFig2[0,icol].set_title(fr'$\beta$~Normal(0,{sigma_b})', fontsize=20)
+    axFig2[0,icol].set_xlabel('Yield [t/ha]', fontsize=20)
+    axFig2[0,icol].set_ylabel('Density', fontsize=20)
+    # Set tick font size
+    for label in (axFig2[0,icol].get_xticklabels() + axFig2[0,icol].get_yticklabels()):
+        label.set_fontsize(20)
+    axFig2[0,icol].spines['right'].set_visible(False)
+    axFig2[0,icol].spines['top'].set_visible(False)
     
-    for label in (ax.get_xticklabels() + ax.get_yticklabels()):
-        label.set_fontsize(12)
-        
-    fig.savefig(f'figures/linReg_PosthistBeta_sigma{sigma_b}.png',dpi=300,
-                bbox_inches='tight')  
-    # %
     # Plot regression lines
     x_range_scaled = np.linspace(-5,5,100)
     x_mean_scaled = Soil.mean(axis=0)
     x_plot = np.repeat(x_mean_scaled.reshape(1,-1),100,axis=0)
     x_plot[:,0] = x_range_scaled
-    fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+    x_range = x_range_scaled*scale_train['bodenzahl_std']+scale_train['bodenzahl_mean']
+    for i in range(1,300):
+        y_hat_scaled = x_plot @ prior_samples['beta'][i].reshape(-1,1) 
+        
+        y_hat = y_hat_scaled*scale_train['Winterweizen_yield_std']+scale_train['Winterweizen_yield_mean']
+
+        axFig2[1,icol].plot(x_range,y_hat/10,color='k',alpha=0.2)
+
+    axFig2[1,icol].set_title(fr'$\beta$~Normal(0,{sigma_b})', fontsize=20)    
+    axFig2[1,icol].set_xlabel('Soil Rating', fontsize=20)
+    axFig2[1,icol].set_ylabel('Yield [t/ha]', fontsize=20)
+    axFig2[1,icol].set_xlim([30,70])
+    if sigma_b==1:
+        axFig2[1,icol].set_ylim([0,15])
+    else:
+        axFig2[1,icol].set_ylim([-20,40])
+        
+    axFig2[1,icol].spines['right'].set_visible(False)
+    axFig2[1,icol].spines['top'].set_visible(False)
+    
+    sns.rugplot(data=Soil*scale_train['bodenzahl_std']+scale_train['bodenzahl_mean'], 
+            ax=axFig2[1,icol], color='grey')    
+    # Set tick font size
+    for label in (axFig2[1,icol].get_xticklabels() + axFig2[1,icol].get_yticklabels()):
+        label.set_fontsize(20)
+        
+    # Plot posterior samples
+
+    # fig, axFig3[0,icol] = plt.subplots(1, 1, figsize=(6, 4))
+    axFig3[0,icol].hist(prior_samples['beta'],bins=100,density=True, label='prior', color='grey');
+    axFig3[0,icol].hist(post_samples['beta'],bins=100,density=True, label='posterior', color='black');
+    axFig3[0,icol].set_title(fr'$\beta$~Normal(0,{sigma_b})', fontsize=20)
+    axFig3[0,icol].set_xlabel(fr"$\beta$", fontsize=20)
+    axFig3[0,icol].set_xlim([-1,1])
+    axFig3[0,icol].set_ylabel('Density', fontsize=20)
+    axFig3[0,icol].legend(frameon=False, fontsize=20)
+    axFig3[0,icol].spines['right'].set_visible(False)
+    axFig3[0,icol].spines['top'].set_visible(False)
+    
+    for label in (axFig3[0,icol].get_xticklabels() + axFig3[0,icol].get_yticklabels()):
+        label.set_fontsize(20)
+        
+    # Plot regression lines
+    x_range_scaled = np.linspace(-5,5,100)
+    x_mean_scaled = Soil.mean(axis=0)
+    x_plot = np.repeat(x_mean_scaled.reshape(1,-1),100,axis=0)
+    x_plot[:,0] = x_range_scaled
 
     x_range = x_range_scaled*scale_train['bodenzahl_std']+scale_train['bodenzahl_mean']
     for i in range(1,300):
         y_hat_scaled = x_plot @ post_samples['beta'][i].reshape(-1,1) 
         y_hat = y_hat_scaled*scale_train['Winterweizen_yield_std']+scale_train['Winterweizen_yield_mean']
-        ax.plot(x_range,y_hat/10,color='k',alpha=0.2)
+        axFig3[1,icol].plot(x_range,y_hat/10,color='k',alpha=0.2)
 
-    ax.set_title(fr'$\beta$~Normal(0,{sigma_b})', fontsize=20)    
-    ax.set_xlabel('Soil Rating', fontsize=20)
-    ax.set_ylabel('Yield [t/ha]', fontsize=20)
-    ax.set_xlim([30,70])
-    for label in (ax.get_xticklabels() + ax.get_yticklabels()):
+    axFig3[1,icol].set_title(fr'$\beta$~Normal(0,{sigma_b})', fontsize=20)    
+    axFig3[1,icol].set_xlabel('Soil Rating', fontsize=20)
+    axFig3[1,icol].set_ylabel('Yield [t/ha]', fontsize=20)
+    axFig3[1,icol].set_xlim([30,70])
+    for label in (axFig3[1,icol].get_xticklabels() + axFig3[1,icol].get_yticklabels()):
         label.set_fontsize(20)
     
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
+    axFig3[1,icol].spines['right'].set_visible(False)
+    axFig3[1,icol].spines['top'].set_visible(False)
 
     sns.rugplot(data=Soil*scale_train['bodenzahl_std']+scale_train['bodenzahl_mean'], 
-                ax=ax, color='grey')    
+                ax=axFig3[1,icol], color='grey')    
 
-    fig.savefig(f'figures/linReg_PostLines_sigma{sigma_b}.png',dpi=300,
-                bbox_inches='tight')  
-    # %
-
+fig2.show()
+fig3.show()
+fig2.savefig(f'figures/linReg_figure2.png',dpi=300)   
+fig3.savefig(f'figures/linReg_figure3.png',dpi=300)   
 # %%
