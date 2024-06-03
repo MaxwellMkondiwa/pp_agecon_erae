@@ -385,7 +385,7 @@ if __name__ == '__main__':
     # =====================================================
     # Generate the data, set modelType to desired name
     # =====================================================
-    for modelTypeDataGen in ['poly3','poly3_step']:
+    for modelTypeDataGen,figNum in [('poly3',6),('poly3_step',7)]:
         # %%
         # modelTypeDataGen = 'linear'
         # modelTypeDataGen = 'poly2'
@@ -416,13 +416,19 @@ if __name__ == '__main__':
         ax.legend()
 
         # %%
+        # Prepare plot 
+        fig, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(15, 10),tight_layout=True)
+        
         # =====================================================
         # Estimate model, set inference model to desired model
         # =====================================================
         rng_key, rng_key_ = random.split(rng_key)
         
-        for modelTypeInference in ['linear','poly2','poly3','NN']:
-            # %%
+        for modelTypeInference,figTitle,ax in [('linear','i) Linear treatment model',ax1),
+                                            ('poly2','ii) Squared treatment model',ax2),
+                                            ('poly3','iii) Cubic treatment model',ax3),
+                                            ('NN','iv) DNN treatment model',ax4)]:
+            # %
             # modelTypeInference = 'linear'
             # modelTypeInference = 'poly2'
             # modelTypeInference = 'poly3'
@@ -459,7 +465,6 @@ if __name__ == '__main__':
             else:
                 raise ValueError('modelTypeInference not recognized')
             
-            # %%
             # Estimate with SVI
             start = time.time()
             rng_key, rng_key_ = random.split(rng_key)
@@ -469,15 +474,14 @@ if __name__ == '__main__':
             svi = SVI(model,guide,optim.Adam(0.005),Trace_ELBO())
             svi_result = svi.run(rng_key_, 15000,**datXY)
             print("\nInference elapsed time:", time.time() - start)
-            plt.plot(svi_result.losses)
+            # plt.plot(svi_result.losses)
             svi_params = svi_result.params
             
-            # %%
             # Get samples from the posterior
             predictive = Predictive(guide, params=svi_params, num_samples=500)
             samples_svi = predictive(random.PRNGKey(1), **datX)
             samples_svi.keys()
-            # %%
+
             # Get posterior predictions using samples from the posterior
             predictivePosterior = Predictive(model, posterior_samples=samples_svi)
             post_predict = predictivePosterior(random.PRNGKey(1), **datX)
@@ -497,7 +501,7 @@ if __name__ == '__main__':
                 print('beta_true',beta_true)
                 print('beta_hat',np.mean(samples_svi['beta'],axis=0))
 
-            # %%
+            # Plot results
             k = 1
             x_percentile = np.percentile(Z[:,k],q=[0.1,99])
             x_range = np.linspace(x_percentile[0],x_percentile[1],100)
@@ -521,7 +525,7 @@ if __name__ == '__main__':
             # Get prediction from the "true" conditioned model
             true_predict = conditioned_predictive(rng_key_,**datX_plot_conditioned)
             
-            fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+            # fig, ax = plt.subplots(1, 1, figsize=(8, 4))
             for i in range(1,300):
                 tau_i = ((post_predict['Y1'])-(post_predict['Y0']))[i,:]
                 ax.plot(x_plot[:,k],tau_i,color='k',alpha=0.2);
@@ -533,14 +537,14 @@ if __name__ == '__main__':
 
             ax.set_xlabel(f'Z[{k}]', fontsize=20)
             ax.set_ylabel(r'$E[\tau]$', fontsize=20)
+            ax.set_title(figTitle, fontsize=20)
             # Set tick font size
             for label in (ax.get_xticklabels() + ax.get_yticklabels()):
                 label.set_fontsize(20)
             
             sns.rugplot(data=Z[T==1,1], ax=ax, color='black',lw=1, alpha=.005)   
             ax.set_xlim([x_percentile[0],x_percentile[1]])
-            plt.tight_layout()
-            fig.savefig(f'../figures/POF_{modelTypeDataGen}_{modelTypeInference}.png',dpi=300)    
+        fig.savefig(f'figures/POF_figure{figNum}.png',dpi=300)    
     # %%
     
         
