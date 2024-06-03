@@ -74,8 +74,7 @@ def pyro_inference(rng_key,model, num_samples=200, num_warmup=1000,
 
 # %%
 def plot_utility(lam, rho, ax=None, addTitle=True, color='blue'):
-    """ Helper function to plot utility function
-    """
+    """ Helper function to plot utility function"""
     x_range = jnp.linspace(-10,10,20)
     util = utility(x_range,  lam=lam, rho=rho)
 
@@ -160,7 +159,9 @@ if __name__ == "__main__":
     fig.savefig(f'../figures/PT_utilPriorExtrem_AppendixA1.png',dpi=300,
         bbox_inches='tight')
     # %%
-    # sample for prior
+    # =============================
+    # Sample for prior
+    # =============================
     prior_sam = sample_prior(rng_key, model_PT,**dat_X_train)
 
     # %%
@@ -174,11 +175,13 @@ if __name__ == "__main__":
     plt.hist(prior_sam['took_gamble'][0,:10000], bins=100);
     
     # %%
+    # =============================
     # Perform posterior sampling
+    # =============================
     mcmc_M1, post_sam = pyro_inference(rng_key,model_PT,**dat_XY_train)
     
     # %%
-    # Transform to arviz object
+    # Transform mcmc object to arviz object (for plotting posterior samples)
     azMCMC = az.from_numpyro(mcmc_M1)
     # %%
     # =============================
@@ -192,8 +195,8 @@ if __name__ == "__main__":
                      rho=prior_sam['rho'][i],ax=ax1, 
                      addTitle=False,
                      color='black');
-    plt.xlim([-10, 10])
-    plt.ylim([-12, 10])
+    ax1.set_xlim([-10, 10])
+    ax1.set_ylim([-12, 10])
     
     ax1.spines['right'].set_visible(False)
     ax1.spines['top'].set_visible(False)
@@ -209,8 +212,8 @@ if __name__ == "__main__":
                      ax=ax2,
                      addTitle=False,
                      color='black');
-    plt.xlim([-10, 10])
-    plt.ylim([-12, 10])
+    ax2.set_xlim([-10, 10])
+    ax2.set_ylim([-12, 10])
     ax2.spines['right'].set_visible(False)
     ax2.spines['top'].set_visible(False)
     for label in (ax2.get_xticklabels() + ax2.get_yticklabels()):
@@ -254,6 +257,6 @@ if __name__ == "__main__":
     ax3.spines['right'].set_visible(False)
     ax3.spines['top'].set_visible(False)
     plt.show()
-    f.savefig(f'../figures/PT_figure3.png',dpi=300,
+    f.savefig(f'../figures/PT_figure5.png',dpi=300,
         bbox_inches='tight')
 # %%
