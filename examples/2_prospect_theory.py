@@ -11,13 +11,11 @@ Hugo Storm Feb 2024
 
 # Source for prior on lamda and rho 
 # https://www.pnas.org/doi/full/10.1073/pnas.0806761106
-
 import os
+import sys
 import arviz as az
 import matplotlib.pyplot as plt
 import pandas as pd
-import numpy as np
-from scipy.special import softmax
 
 import jax.numpy as jnp
 from jax import random
@@ -25,15 +23,18 @@ from jax import random
 import numpyro
 import numpyro.distributions as dist
 from numpyro.infer import MCMC, NUTS, Predictive
+import matplotlib as mpl
 
-az.style.use("arviz-darkgrid")
 numpyro.set_platform("cpu")
 numpyro.set_host_device_count(4)
 
+az.style.use("arviz-darkgrid")
 plt.style.use('default')
-import matplotlib as mpl
 mpl.rcParams['figure.dpi'] = 300
 
+wd = '/workspaces/pp_agecon_erae'
+os.chdir(wd)
+sys.path.append(wd)
 
 # %%
 def load_data():
@@ -156,7 +157,7 @@ if __name__ == "__main__":
         for label in (ax.get_xticklabels() + ax.get_yticklabels()):
             label.set_fontsize(20)
         
-    fig.savefig(f'../figures/PT_utilPriorExtrem_AppendixA1.png',dpi=300,
+    fig.savefig(f'figures/PT_utilPriorExtrem_AppendixA1.png',dpi=300,
         bbox_inches='tight')
     # %%
     # =============================
@@ -222,7 +223,7 @@ if __name__ == "__main__":
     
     ax2.set_title('Posterior samples', fontsize=20)
     
-    f.savefig(f'../figures/PT_figure4.png',dpi=300,
+    f.savefig(f'figures/PT_figure4.png',dpi=300,
         bbox_inches='tight')
     plt.show()
     # %%
@@ -257,6 +258,6 @@ if __name__ == "__main__":
     ax3.spines['right'].set_visible(False)
     ax3.spines['top'].set_visible(False)
     plt.show()
-    f.savefig(f'../figures/PT_figure5.png',dpi=300,
+    f.savefig(f'figures/PT_figure5.png',dpi=300,
         bbox_inches='tight')
 # %%

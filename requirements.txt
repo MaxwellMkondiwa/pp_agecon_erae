@@ -1,0 +1,13 @@
+arviz==0.15.1
+matplotlib==3.7.2
+pandas==2.0.3
+seaborn==0.12.2
+flax==0.7.2
+numpyro==0.13.0
+tensorflow-probability==0.24.0
+ipykernel==6.29.4
+black==24.4.1
+isort==5.13.2
+flake8==7.0.0 
+scikit-learn==1.5.0
+

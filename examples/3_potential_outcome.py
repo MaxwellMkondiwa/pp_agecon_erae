@@ -5,6 +5,7 @@ Hugo Storm Feb 2024
 
 """
 import os
+import sys
 import time
 import arviz as az
 import matplotlib.pyplot as plt
@@ -29,15 +30,17 @@ if len(jax.devices(backend='gpu'))>0:
 else:
     numpyro.set_platform("cpu")
 
-az.style.use("arviz-darkgrid")
-
-plt.style.use('default')
 import matplotlib as mpl
+az.style.use("arviz-darkgrid")
+plt.style.use('default')
 mpl.rcParams['figure.dpi'] = 300
 
+wd = '/workspaces/pp_agecon_erae'
+os.chdir(wd)
+sys.path.append(wd)
 
 # Make sure that numpyro is the correct version
-assert numpyro.__version__.startswith("0.12.1")
+assert numpyro.__version__.startswith("0.13.0")
 
 # %%
 rng_key = random.PRNGKey(123)

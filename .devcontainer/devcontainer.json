@@ -1,7 +1,7 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
 // https://github.com/microsoft/vscode-dev-containers/tree/v0.231.6/containers/docker-existing-dockerfile
 {
-	"name": "pp_eaae_rennes",
+	"name": "pp_agecon_erae",
 
 	// Sets the run context to one level up instead of the .devcontainer folder.
 	"context": "..",
@@ -10,10 +10,11 @@
 	"dockerFile": "../Dockerfile",
 
 	// "runArgs": [ "--network=host" ],
+	"runArgs": [ "--gpus=all", "-it", "--rm"],
 	"extensions": ["ms-python.python",
-		"njpwerner.autodocstring",
-		"kevinrose.vsc-python-indent",
-		"streetsidesoftware.code-spell-checker"],
+	"njpwerner.autodocstring","ms-toolsai.jupyter",
+	"kevinrose.vsc-python-indent",
+	"streetsidesoftware.code-spell-checker"],
 	// "workspaceMount": null,
 	// "workspaceFolder": "/workspaces/nn_norway",
 	// "mounts": ["source= ${localWorkspaceFolder},target=/workspaces/nn_norway/,type=bind,consistency=cached"]
