@@ -32,6 +32,8 @@ os.chdir(os.path.dirname(os.getcwd()))
 assert numpyro.__version__.startswith("0.12.1")
 
 plt.style.use('default')
+import matplotlib as mpl
+mpl.rcParams['figure.dpi'] = 300
 
 # %%
 # Set seed for reproducibility
@@ -119,7 +121,9 @@ for sigma_b in [1,5]:
         label.set_fontsize(20)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
-        
+    
+    fig.savefig(f'figures/linReg_PriorhistYield_sigma{sigma_b}.png',dpi=300,
+                bbox_inches='tight')     
 
     # Plot regression lines
     x_range_scaled = np.linspace(-5,5,100)
@@ -150,11 +154,13 @@ for sigma_b in [1,5]:
     plt.tight_layout()
     sns.rugplot(data=Soil*scale_train['bodenzahl_std']+scale_train['bodenzahl_mean'], 
             ax=ax, color='grey')    
-
     # %
     # Set tick font size
     for label in (ax.get_xticklabels() + ax.get_yticklabels()):
         label.set_fontsize(20)
+        
+    fig.savefig(f'figures/linReg_PriorLines_sigma{sigma_b}.png',dpi=300,
+                bbox_inches='tight')    
     # %
     # =============================================================================
     # Estimate model using numpyro MCMC
@@ -190,7 +196,10 @@ for sigma_b in [1,5]:
     
     
     for label in (ax.get_xticklabels() + ax.get_yticklabels()):
-        label.set_fontsize(15)
+        label.set_fontsize(12)
+        
+    fig.savefig(f'figures/linReg_PosthistBeta_sigma{sigma_b}.png',dpi=300,
+                bbox_inches='tight')  
     # %
     # Plot regression lines
     x_range_scaled = np.linspace(-5,5,100)
@@ -218,6 +227,8 @@ for sigma_b in [1,5]:
     sns.rugplot(data=Soil*scale_train['bodenzahl_std']+scale_train['bodenzahl_mean'], 
                 ax=ax, color='grey')    
 
+    fig.savefig(f'figures/linReg_PostLines_sigma{sigma_b}.png',dpi=300,
+                bbox_inches='tight')  
     # %
 
 # %%
